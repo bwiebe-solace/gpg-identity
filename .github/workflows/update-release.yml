@@ -1,0 +1,67 @@
+name: Update Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - pubkey.asc
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release notes
+        run: |
+          FINGERPRINT="15746FFA864B0DCBAE8D4B0DADEFC33E229A5A37"
+          gpg --import pubkey.asc 2>/dev/null
+
+          SIGNATORIES=$(gpg --with-colons --list-sigs "$FINGERPRINT" | awk -F: '
+            /^pub/ { own_id = $5 }
+            /^uid/ { in_uid = 1 }
+            /^sub/ { in_uid = 0 }
+            /^sig/ {
+              if (in_uid && $5 != own_id) {
+                if ($10 != "") {
+                  uid = $10
+                  gsub(/\\x3a/, ":", uid)
+                  print "- " uid
+                } else if ($5 != "") {
+                  print "- [Key ID: " $5 "]"
+                }
+              }
+            }
+          ')
+
+          {
+            echo "## Signatories"
+            echo ""
+            if [ -z "$SIGNATORIES" ]; then
+              echo "No third-party signatures yet."
+            else
+              echo "The following people have signed this key to verify my identity:"
+              echo ""
+              echo "$SIGNATORIES"
+            fi
+            echo ""
+            echo "---"
+            echo ""
+            echo "Import the key:"
+            echo '```bash'
+            echo "curl -sL https://raw.githubusercontent.com/bwiebe-solace/gpg-identity/main/pubkey.asc | gpg --import"
+            echo '```'
+          } > release_body.md
+
+      - name: Recreate release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete current --yes --cleanup-tag 2>/dev/null || true
+
+          gh release create current \
+            --title "Current Signed Key" \
+            --notes-file release_body.md \
+            pubkey.asc
