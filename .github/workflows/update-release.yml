@@ -24,6 +24,11 @@ jobs:
             | sort -u)
 
           {
+            echo "> **Note:** The signatory list below is derived from the git"
+            echo "> commit history and is provided for convenience only. The"
+            echo "> cryptographic source of truth is the key file itself —"
+            echo "> import it and run \`gpg --list-sigs\` to verify."
+            echo ""
             echo "## Signatories"
             echo ""
             if [ -z "$SIGNATORIES" ]; then
