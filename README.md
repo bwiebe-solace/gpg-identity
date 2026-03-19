@@ -82,17 +82,49 @@ incoming signature and update my own keyring at the same time.
 
 ## Maintainer: Merging a Signature PR
 
-PRs are intentionally not merged via the GitHub UI. Use the included script
-to review, accept, or reject a signature PR interactively:
+PRs are intentionally not merged via the GitHub UI. The recommended approach
+is the included script, which handles the full flow interactively:
 
 ```bash
 bash accept-signature.sh
 ```
 
-The script will list open signature PRs, fetch the branch, import the
-signer's public key from the issue (if provided), show the current signatures
-on the key, verify them if possible, and prompt to accept or reject.
+The script lists open signature PRs, fetches the branch, imports the signer's
+public key from the issue if provided, shows current signatures, verifies them
+if possible, and prompts to accept or reject. Only accept signatures from
+people whose identity you can confirm — if the signer did not include their
+public key, verification must happen out-of-band.
 
-If the signer did not include their public key in the issue, their signature
-can only be verified out-of-band. Only accept signatures from people whose
-identity you can confirm.
+### Manual equivalent
+
+```bash
+# Fetch the PR branch
+git fetch origin pull/<PR_NUMBER>/head:pr-<PR_NUMBER>
+
+# Verify only pubkey.asc was changed
+git diff main pr-<PR_NUMBER>
+
+# Optionally import the signer's public key for verification
+# (paste from the issue, or obtain directly from the signer)
+gpg --import <signer-key.asc>
+
+# Import the updated key and review signatures
+git show pr-<PR_NUMBER>:pubkey.asc | gpg --import
+gpg --list-sigs 15746FFA864B0DCBAE8D4B0DADEFC33E229A5A37
+
+# Accept: merge, push, and clean up
+git merge --no-ff pr-<PR_NUMBER> -m "merge: Accept signature from <SIGNER>"
+git push origin main
+git branch -d pr-<PR_NUMBER>
+
+# Reject: close the PR
+gh pr close <PR_NUMBER> --comment "Rejected: <REASON>"
+git branch -d pr-<PR_NUMBER>
+```
+
+To remove a signature from your local keyring after a rejection:
+
+```bash
+gpg --edit-key 15746FFA864B0DCBAE8D4B0DADEFC33E229A5A37
+# At the gpg> prompt: uid 1 (select the uid), then: delsig
+```
