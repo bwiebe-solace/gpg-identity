@@ -82,35 +82,17 @@ incoming signature and update my own keyring at the same time.
 
 ## Maintainer: Merging a Signature PR
 
-PRs are intentionally not merged via the GitHub UI. The steps below allow
-validating the signature and updating the local keyring atomically.
+PRs are intentionally not merged via the GitHub UI. Use the included script
+to review, accept, or reject a signature PR interactively:
 
 ```bash
-# Fetch the PR branch without checking it out
-git fetch origin pull/<PR_NUMBER>/head:pr-<PR_NUMBER>
-
-# Inspect the diff — it must only modify pubkey.asc
-git diff main pr-<PR_NUMBER>
-
-# Import the key from the branch to update the local keyring and review sigs
-git show pr-<PR_NUMBER>:pubkey.asc | gpg --import
-gpg --list-sigs 15746FFA864B0DCBAE8D4B0DADEFC33E229A5A37
-
-# If the signature looks legitimate, squash-merge and commit
-# (squash is required — the bot's commit on the PR branch is unsigned)
-git merge --squash pr-<PR_NUMBER>
-git commit -m "merge: Accept signature from <SIGNER>"
-git push origin main
-
-# Clean up
-git branch -d pr-<PR_NUMBER>
+bash accept-signature.sh
 ```
 
-If the signature is not legitimate or the PR modifies anything other than
-`pubkey.asc`, close the PR without merging. To remove a bad signature from the
-local keyring:
+The script will list open signature PRs, fetch the branch, import the
+signer's public key from the issue (if provided), show the current signatures
+on the key, verify them if possible, and prompt to accept or reject.
 
-```bash
-gpg --edit-key 15746FFA864B0DCBAE8D4B0DADEFC33E229A5A37
-# At the gpg> prompt: uid 1 (select the uid), then: delsig
-```
+If the signer did not include their public key in the issue, their signature
+can only be verified out-of-band. Only accept signatures from people whose
+identity you can confirm.

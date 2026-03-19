@@ -13,28 +13,15 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build release notes
         run: |
-          FINGERPRINT="15746FFA864B0DCBAE8D4B0DADEFC33E229A5A37"
-          gpg --import pubkey.asc 2>/dev/null
-
-          SIGNATORIES=$(gpg --with-colons --list-sigs "$FINGERPRINT" | awk -F: '
-            /^pub/ { own_id = $5 }
-            /^uid/ { in_uid = 1 }
-            /^sub/ { in_uid = 0 }
-            /^sig/ {
-              if (in_uid && $5 != own_id) {
-                if ($10 != "") {
-                  uid = $10
-                  gsub(/\\x3a/, ":", uid)
-                  print "- " uid
-                } else if ($5 != "") {
-                  print "- [Key ID: " $5 "]"
-                }
-              }
-            }
-          ')
+          SIGNATORIES=$(git log --format="%s" \
+            | grep "^merge: Accept signature from " \
+            | sed 's/merge: Accept signature from /- /' \
+            | sort -u)
 
           {
             echo "## Signatories"
